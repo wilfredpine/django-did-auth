@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "django-did-auth"
+version = "0.1.1"
+description = "Secure, pluggable authentication framework for Django"
+readme = "README.md"
+requires-python = ">=3.10"
+
+license = { text = "MIT" }
+
+authors = [
+    { name = "Wilfred Pine", email = "wilfredpine9@gmail.com" }
+]
+
+dependencies = [
+    "Django>=4.2",
+    "django-ratelimit>=4.1.0",
+    "django-redis>=5.0.0",      
+    "Pillow>=10.0.0",           
+    "django-axes>=8.0",         
+    "argon2-cffi>=21.3.0",
+]
+
+keywords = ["django", "authentication", "security", "auth"]
+
+classifiers = [
+    "Framework :: Django",
+    "Framework :: Django :: 4.2",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["django_sauth*"]

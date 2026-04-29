@@ -1,0 +1,44 @@
+{% extends "sauth/base.html" %}
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <div class="text-center">
+        <h2 class="text-3xl font-semibold text-gray-900">Sign in to your account</h2>
+        <p class="mt-2 text-gray-600">Welcome back! Please enter your details.</p>
+    </div>
+
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+        
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Email address</label>
+            {{ form.email }}
+            {% if form.email.errors %}
+                <p class="mt-1 text-red-500 text-sm">{{ form.email.errors.0 }}</p>
+            {% endif %}
+        </div>
+
+        <div>
+            <div class="flex justify-between items-center">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <a href="{% url 'sauth:password_reset_request' %}" class="text-sm text-blue-600 hover:text-blue-500">Forgot password?</a>
+            </div>
+            {{ form.password }}
+            {% if form.password.errors %}
+                <p class="mt-1 text-red-500 text-sm">{{ form.password.errors.0 }}</p>
+            {% endif %}
+        </div>
+
+        <button type="submit"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-2xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+            Sign in
+        </button>
+    </form>
+
+    <div class="text-center text-sm text-gray-600">
+        Don't have an account? 
+        <a href="{% url 'sauth:register' %}" class="font-medium text-blue-600 hover:text-blue-500">Sign up</a>
+    </div>
+</div>
+{% endblock %}

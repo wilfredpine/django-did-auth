@@ -1,0 +1,3 @@
+include README.md
+recursive-include django_sauth/templates *
+recursive-include django_sauth/static *

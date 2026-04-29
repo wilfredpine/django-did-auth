@@ -1,0 +1,41 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Secure Authentication{% endblock %}</title>
+    
+    <!-- Tailwind CSS CDN (development). Replace with compiled CSS in production -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            content: ["**/*.html"],
+        };
+    </script>
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4">
+    <div class="max-w-md w-full space-y-8">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Global Messages -->
+    {% if messages %}
+    <div class="fixed bottom-6 right-6 z-50 space-y-3">
+        {% for message in messages %}
+        <div class="px-6 py-4 rounded-2xl shadow-2xl text-sm font-medium
+            {% if 'success' in message.tags %}bg-green-500 text-white
+            {% elif 'error' in message.tags %}bg-red-500 text-white
+            {% elif 'warning' in message.tags %}bg-amber-500 text-white
+            {% else %}bg-blue-500 text-white{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
