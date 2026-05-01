@@ -18,6 +18,7 @@ def get_form_class(form_type: str):
             PasswordResetRequestForm,
             SetNewPasswordForm,
             ResendVerificationForm,   # kept for future use
+            ChangePasswordForm,
         )
     else:
         from django_did_auth.ui.forms.tailwind import (
@@ -26,6 +27,7 @@ def get_form_class(form_type: str):
             PasswordResetRequestForm,
             SetNewPasswordForm,
             ResendVerificationForm,
+            ChangePasswordForm,
         )
 
     forms_dict = {
@@ -34,6 +36,7 @@ def get_form_class(form_type: str):
         "PasswordResetRequestForm": PasswordResetRequestForm,
         "SetNewPasswordForm": SetNewPasswordForm,
         "ResendVerificationForm": ResendVerificationForm,
+        "ChangePasswordForm": ChangePasswordForm,
     }
 
     form_class = forms_dict.get(form_type)

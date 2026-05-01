@@ -33,4 +33,5 @@ urlpatterns = [
     path("password-reset-confirm/<uidb64>/<token>/", 
          password_reset_confirm_view, 
          name="password_reset_confirm"),
+    
 ]

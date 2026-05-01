@@ -12,7 +12,7 @@ from django_did_auth.security.audit.logger import (
     log_login_failure,
     log_login_blocked_inactive
 )
-
+from django.contrib.auth import login
 
 def login_user(request, email, password):
     """
@@ -35,4 +35,5 @@ def login_user(request, email, password):
 
     # Successful login
     log_login_success(request, user)
+    login(request, user)
     return user, "success"

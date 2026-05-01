@@ -166,3 +166,56 @@ class ResendVerificationForm(forms.Form):
         label=_('Email address'),
         required=True
     )
+
+
+class ChangePasswordForm(forms.Form):
+    current_password = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'class': TAILWIND_INPUT,
+            'placeholder': 'Current password',
+            'autocomplete': 'current-password'
+        }),
+        label=_('Current password'),
+        required=True
+    )
+    
+    new_password = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'class': TAILWIND_INPUT,
+            'placeholder': 'New password',
+            'autocomplete': 'new-password'
+        }),
+        label=_('New password'),
+        required=True,
+        min_length=12
+    )
+
+    confirm_password = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'class': TAILWIND_INPUT,
+            'placeholder': 'Confirm new password',
+            'autocomplete': 'new-password'
+        }),
+        label=_('Confirm new password'),
+        required=True
+    )
+
+    def __init__(self, user, *args, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+
+    def clean_current_password(self):
+        if not self.user.check_password(self.cleaned_data.get('current_password')):
+            raise ValidationError("Current password is incorrect.")
+        return self.cleaned_data.get('current_password')
+
+    def clean(self):
+        cleaned_data = super().clean()
+        new = cleaned_data.get("new_password")
+        confirm = cleaned_data.get("confirm_password")
+
+        if new != confirm:
+            raise ValidationError("Passwords do not match.")
+
+        validate_password(new, self.user)
+        return cleaned_data

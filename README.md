@@ -15,6 +15,7 @@ A production-grade authentication framework for Django with:
 ✅ Register with email verification  
 ✅ Login / Logout  
 ✅ Forgot Password (secure token flow)  
+✅ Change Password
 ✅ Role-based redirects  
 ✅ Tailwind / Bootstrap UI support  
 ✅ Redis-backed rate limiting  
@@ -55,12 +56,16 @@ INSTALLED_APPS += [
 - `your_project/urls.py`
 
 ```python
+
+from django_did_auth.core.views.password import change_password_view
+
 urlpatterns = [
     # admin
     path('admin/', admin.site.urls),
 
     # DID_AUTH URLs
     path('auth/', include('django_did_auth.urls')), # Include DID_AUTH URLs
+    path('profile/change-password/', change_password_view, name="change_password"), 
 
     # 👤 Role Dashboards
     path('dashboard/admin/', main_views.admin_dashboard),
@@ -116,6 +121,7 @@ from core_system import settings
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('auth/', include('user_app.urls')), # from `your_project/user_app/urls.py`
+    ...
 ]
 
 ```
@@ -565,6 +571,26 @@ Create the following files:
     </a>
 </div>
 ```
+- `templates/profile/change_password.html`
+```html
+<form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div class="space-y-4">
+        {{ form.current_password.label_tag }}
+        {{ form.current_password }}
+
+        {{ form.new_password.label_tag }}
+        {{ form.new_password }}
+
+        {{ form.confirm_password.label_tag }}
+        {{ form.confirm_password }}
+    </div>
+    <button class="mt-6 w-full bg-blue-600 text-white py-2 rounded">
+        Update Password
+    </button>
+</form>
+```
 
 ---
 
@@ -611,7 +637,7 @@ class CustomUser(AbstractUser):
         return self.email
 ```
 
-## Re-used Register flow
+## Re-used Register flow on your `Views`
 ```python
 from django_did_auth.core.flows.register_flow import register_user
 
@@ -620,7 +646,7 @@ if request.method == "POST":
         if form.is_valid():
             user = register_user(request, form)
 ```
-- it save as `user.is_active = False`
+- this will save as `user.is_active = False`
 
 
 ---

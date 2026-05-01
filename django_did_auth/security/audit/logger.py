@@ -84,6 +84,9 @@ def log_password_reset_requested(request, email):
 
 def log_password_reset_completed(request, user):
     log_event(request, "password_reset_completed", user=user)
+    
+def log_password_change(request, user):
+    log_event(request, "password_change_success", user=user)
 
 def log_logout(request, user):
     log_event(request, "logout", user=user)

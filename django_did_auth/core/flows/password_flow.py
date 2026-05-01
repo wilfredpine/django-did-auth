@@ -47,3 +47,14 @@ def confirm_password_reset(request, uidb64, token, new_password):
 
     log_password_reset_completed(request, user)
     return user, "success"
+
+
+def change_password_flow(user, new_password):
+    """
+    Handles password change logic
+    """
+    user.set_password(new_password)
+    user.save()
+
+    # Prevent logout after password change
+    return user
