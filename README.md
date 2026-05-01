@@ -57,6 +57,7 @@ INSTALLED_APPS += [
 
 ```python
 
+from django.views.generic.base import RedirectView
 from django_did_auth.core.views.password import change_password_view
 
 urlpatterns = [
@@ -65,6 +66,7 @@ urlpatterns = [
 
     # DID_AUTH URLs
     path('auth/', include('django_did_auth.urls')), # Include DID_AUTH URLs
+    path('', RedirectView.as_view(pattern_name='did_auth:login', permanent=False)),
     path('profile/change-password/', change_password_view, name="change_password"), 
 
     # 👤 Role Dashboards
@@ -138,7 +140,7 @@ AUTH_USER_MODEL = 'users.CustomUser'
 LOGIN_URL = 'did_auth:login'
 
 DID_AUTH = {
-    "LOGIN_REDIRECT": "/dashboard/",
+    # "LOGIN_REDIRECT": "/dashboard/", # already redirect based on roles below
     "LOGOUT_REDIRECT": "/auth/login/",
 
     "ADMIN_URL": "admin/",
@@ -164,7 +166,7 @@ MIDDLEWARE.insert(0, 'django_did_auth.security.admin.ipwhitelist.AdminIPWhitelis
 
 ```python
 DID_AUTH = {
-    "LOGIN_REDIRECT": "/dashboard/",
+    # "LOGIN_REDIRECT": "/dashboard/", # already redirect based on roles below
     "LOGOUT_REDIRECT": "/login/",
     "ADMIN_URL": "admin/",
     "ADMIN_IP_WHITELIST": ['127.0.0.1', '::1'],  # Localhost by default
