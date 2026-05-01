@@ -1,0 +1,16 @@
+
+{% extends "did_auth/base.html" %}
+{% block title %}Lockout{% endblock %}
+
+{% block content %}
+<div class="text-center py-12 space-y-6">
+    <h2 class="text-3xl font-bold text-red-600">Account Temporarily Locked</h2>
+    <p class="text-gray-600">Too many failed login attempts from this IP or account.</p>
+    <p>Please try again later or contact support.</p>
+    
+    <a href="{% url 'did_auth:login' %}" 
+       class="inline-block px-6 py-3 bg-gray-800 text-white rounded-2xl hover:bg-gray-900">
+        Back to Login
+    </a>
+</div>
+{% endblock %}

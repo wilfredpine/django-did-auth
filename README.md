@@ -1,4 +1,4 @@
-# 🔐 django-sauth
+# 🔐 django-did-auth
 
 A production-grade authentication framework for Django with:
 
@@ -37,10 +37,10 @@ pip install django-did-auth
 
 ```python
 # --------------------------------------------------
-#  🔐 AUTHENTICATION & SAUTH CONFIG
+#  🔐 AUTHENTICATION & DID_AUTH CONFIG
 # --------------------------------------------------
 INSTALLED_APPS += [
-    'django_sauth', # install here
+    'django_did_auth', # install here
     'axes', 
     'django_ratelimit',
     'users', # apps for custom user model
@@ -51,19 +51,76 @@ INSTALLED_APPS += [
 
 ### 2. URLs
 
+#### Using full authentication:
+- `your_project/urls.py`
+
 ```python
 urlpatterns = [
     # admin
     path('admin/', admin.site.urls),
 
-    # SAUTH URLs
-    path('auth/', include('django_sauth.urls')), # Include SAUTH URLs
+    # DID_AUTH URLs
+    path('auth/', include('django_did_auth.urls')), # Include DID_AUTH URLs
 
     # 👤 Role Dashboards
     path('dashboard/admin/', main_views.admin_dashboard),
     path('dashboard/', main_views.user_dashboard),
 ]
 ```
+
+#### Or using only specific authentication:
+- create `urls.py` at your app where custom_user model made
+- Example: `your_project/user_app/urls.py`
+
+```python
+
+from django.urls import path
+from django.shortcuts import render
+from django_did_auth.core.views.register import register_view
+from django_did_auth.core.views.login import login_view
+from django_did_auth.core.views.logout import logout_view
+from django_did_auth.core.views.activation import activate_account_view
+from django_did_auth.core.views.password_reset import (
+    password_reset_request_view,
+    password_reset_confirm_view
+)
+
+app_name = "did_auth"
+
+urlpatterns = [
+    # Authentication
+    # path("register/", register_view, name="register"),
+    path("login/", login_view, name="login"),
+    path("logout/", logout_view, name="logout"),
+
+    # Email Verification
+    # path("activate/<uidb64>/<token>/", activate_account_view, name="activate"),
+    # path("verification-sent/", lambda r: render(r, "did_auth/verification_sent.html"), name="verification_sent"),
+
+    # Password Reset
+    # path("password-reset/", password_reset_request_view, name="password_reset_request"),
+    # path("password-reset-confirm/<uidb64>/<token>/", password_reset_confirm_view, name="password_reset_confirm"),
+]
+
+```
+
+then include it on url project urls
+- - `your_project/urls.py`
+
+```python
+from django.contrib import admin
+from django.urls import include, path
+
+from core_system import settings
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('auth/', include('user_app.urls')), # from `your_project/user_app/urls.py`
+]
+
+```
+
+IMPORTANT: for disabling / or using specific authentication, use custom Templates (see below)
 
 ---
 
@@ -72,15 +129,76 @@ urlpatterns = [
 ```python
 AUTH_USER_MODEL = 'users.CustomUser'
 
-LOGIN_URL = 'sauth:login'
+LOGIN_URL = 'did_auth:login'
 
-SAUTH = {
+DID_AUTH = {
     "LOGIN_REDIRECT": "/dashboard/",
     "LOGOUT_REDIRECT": "/auth/login/",
+
+    "ADMIN_URL": "admin/",
+    "ADMIN_IP_WHITELIST": ['127.0.0.1', '::1'],  # Localhost by default
+    # on your URL
+    # from django_did_auth.config.loader import get_admin_url
+    # urlpatterns = [
+    #     path(get_admin_url(), admin.site.urls),
+    # ]
+
     "ROLES": {
         "admin": "/dashboard/admin/",
         "user": "/dashboard/",
     },
+}
+
+# Admin security
+MIDDLEWARE.insert(0, 'django_did_auth.security.admin.ipwhitelist.AdminIPWhitelistMiddleware')
+
+```
+
+- Default DID_AUTH config (can be overridden in dev/prod):
+
+```python
+DID_AUTH = {
+    "LOGIN_REDIRECT": "/dashboard/",
+    "LOGOUT_REDIRECT": "/login/",
+    "ADMIN_URL": "admin/",
+    "ADMIN_IP_WHITELIST": ['127.0.0.1', '::1'],  # Localhost by default
+
+    "ROLES": {
+        "admin": "/admin-dashboard/",
+        "staff": "/staff-dashboard/",
+        "moderator": "/moderator-dashboard/",
+        "user": "/dashboard/",
+    },
+
+    "EMAIL": {
+        "VERIFY_EXPIRY_HOURS": 24,
+        "RESET_EXPIRY_HOURS": 1,
+        "FROM_EMAIL": None,  # Will use DEFAULT_FROM_EMAIL
+    },
+
+    "RATE_LIMIT": {
+        "LOGIN": "10/m",
+        "REGISTER": "5/m",
+        "PASSWORD_RESET": "5/m",
+    },
+
+    "UI_FRAMEWORK": "tailwind",  # "tailwind" or "bootstrap"
+
+    "ENABLE_AUDIT": True,
+    "TRUST_PROXY": False,
+    
+    "SECURITY": {
+        "PASSWORD_MIN_LENGTH": 12,
+        "ENABLE_AXES": True,
+        "LOCKOUT_AFTER_ATTEMPTS": 5,
+        "LOCKOUT_DURATION_MINUTES": 30,
+        "REQUIRE_HTTPS": True,          # Enforce in production
+    },
+    "AUDIT": {
+        "ENABLED": True,
+        "LOG_SENSITIVE": False,         # Don't log passwords
+    }
+    
 }
 ```
 
@@ -175,7 +293,7 @@ AXES_RESET_ON_SUCCESS = True
 AXES_USERNAME_FORM_FIELD = 'email'
 AXES_LOCKOUT_PARAMETERS = ['username', 'ip_address']
 # Optional UI override
-AXES_LOCKOUT_TEMPLATE = 'sauth/lockout.html'
+AXES_LOCKOUT_TEMPLATE = 'did_auth/lockout.html'
 ```
 
 ### Email Settings
@@ -206,20 +324,20 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 ```python
 # --------------------------------------------------
-# 🧾 LOGGING (EXTENDED FOR SAUTH)
+# 🧾 LOGGING (EXTENDED FOR DID_AUTH)
 # --------------------------------------------------
 LOGGING['loggers'].update({
-    'sauth.audit': {
+    'did_auth.audit': {
         'handlers': ['console', 'security_file'],
         'level': 'INFO',
         'propagate': False,
     },
-    'sauth.app': {
+    'did_auth.app': {
         'handlers': ['console', 'app_file'],
         'level': 'INFO',
         'propagate': False,
     },
-    'sauth.ratelimit': {
+    'did_auth.ratelimit': {
         'handlers': ['console', 'security_file'],
         'level': 'WARNING',
         'propagate': False,
@@ -232,7 +350,7 @@ LOGGING['loggers'].update({
 ## 🧠 Role-Based Redirection (already in #3 Required Settings)
 
 ```python
-SAUTH = {
+DID_AUTH = {
     "ROLES": {
         "admin": "/dashboard/admin/",
         "staff": "/dashboard/staff/",
@@ -247,7 +365,7 @@ SAUTH = {
 - you can use in your project the email sending function using:
 
 ```python
-from django_sauth.core.flows.email_flow import send_general_email
+from django_did_auth.core.flows.email_flow import send_general_email
 
 send_general_email(
     request,
@@ -266,7 +384,7 @@ create the `templates/emails/welcome.html`
 - to use the audit log feature inside your project:
 
 ```python
-from django_sauth.security.audit.logger import log_event
+from django_did_auth.security.audit.logger import log_event
 
 log_event(request, "login_success", user=request.user)
 
@@ -281,7 +399,7 @@ log_event(
 ## Templates Overiding
 
 Create the following files:
-- `templates/sauth/login.html`
+- `templates/did_auth/login.html`
 ```html
 <form method="post" class="space-y-6">
     {% csrf_token %}
@@ -295,7 +413,7 @@ Create the following files:
     <div>
         <div class="flex justify-between items-center">
             <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <a href="{% url 'sauth:password_reset_request' %}" class="text-sm text-blue-600 hover:text-blue-500">Forgot password?</a>
+            <a href="{% url 'did_auth:password_reset_request' %}" class="text-sm text-blue-600 hover:text-blue-500">Forgot password?</a>
         </div>
         {{ form.password }}
         {% if form.password.errors %}
@@ -308,7 +426,7 @@ Create the following files:
     </button>
 </form>
 ```
-- `templates/sauth/register.html`
+- `templates/did_auth/register.html`
 ```html
 <form method="post" class="space-y-6">
     {% csrf_token %}
@@ -340,20 +458,20 @@ Create the following files:
     </button>
 </form>
 ```
-- `templates/sauth/lockout.html`
+- `templates/did_auth/lockout.html`
 ```html
 <div class="text-center py-12 space-y-6">
     <h2 class="text-3xl font-bold text-red-600">Account Temporarily Locked</h2>
     <p class="text-gray-600">Too many failed login attempts from this IP or account.</p>
     <p>Please try again later or contact support.</p>
     
-    <a href="{% url 'sauth:login' %}" 
+    <a href="{% url 'did_auth:login' %}" 
        class="inline-block px-6 py-3 bg-gray-800 text-white rounded-2xl hover:bg-gray-900">
         Back to Login
     </a>
 </div>
 ```
-- `templates/sauth/password_reset_confirm.html`
+- `templates/did_auth/password_reset_confirm.html`
 ```html
 {% if valid_link and form %}
     <form method="post" class="space-y-6">
@@ -375,13 +493,13 @@ Create the following files:
     <div class="text-center text-red-600 py-8">
         This password reset link is invalid or has expired.
     </div>
-    <a href="{% url 'sauth:password_reset_request' %}" 
+    <a href="{% url 'did_auth:password_reset_request' %}" 
         class="block text-center text-blue-600 hover:text-blue-500">
         Request a new reset link
     </a>
 {% endif %}
 ```
-- `templates/sauth/password_reset_request.html`
+- `templates/did_auth/password_reset_request.html`
 ```html
 <form method="post" class="space-y-6">
     {% csrf_token %}
@@ -395,7 +513,7 @@ Create the following files:
     </button>
 </form>
 ```
-- `templates/sauth/verification_sent.html`
+- `templates/did_auth/verification_sent.html`
 ```html
 <h2 class="text-3xl font-semibold text-gray-900">Check your email</h2>
 <p class="text-gray-600 max-w-sm mx-auto">
@@ -403,7 +521,7 @@ Create the following files:
     Please click the link to activate your account.
 </p>
 ```
-- `templates/sauth/email/activation.html`
+- `templates/did_auth/email/activation.html`
 ```html
 <h2>Hi {{ user.first_name|default:user.email }},</h2>
 <p>Thank you for registering! Please click the button below to activate your account:</p>
@@ -416,7 +534,7 @@ Create the following files:
     This link will expire in {{ expiry|default:24 }} hours.
 </p>
 ```
-- `templates/sauth/email/password_reset.html`
+- `templates/did_auth/email/password_reset.html`
 ```html
 <h2>Hi {{ user.first_name|default:user.email }},</h2>
 <p>You requested a password reset. Click the link below to set a new password:</p>
@@ -427,6 +545,25 @@ Create the following files:
 </a>
 <p style="color: #666;">This link will expire soon.</p>
 <p>If you didn't request this, please ignore this email.</p>
+```
+- `templates/did_auth/403.html`
+```html
+<div class="bg-white shadow-lg rounded-2xl p-8 max-w-md text-center">
+    <div class="text-red-500 text-6xl font-bold">403</div>
+    <h1 class="text-2xl font-semibold mt-4 text-gray-800">
+        Access Denied
+    </h1>
+    <p class="text-gray-600 mt-2">
+        You do not have permission to access this resource.
+    </p>
+    <p class="text-sm text-gray-400 mt-3">
+        If you believe this is an error, contact your administrator.
+    </p>
+    <a href="/" 
+       class="inline-block mt-6 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+        Go Home
+    </a>
+</div>
 ```
 
 ---
@@ -476,7 +613,7 @@ class CustomUser(AbstractUser):
 
 ## Re-used Register flow
 ```python
-from django_sauth.core.flows.register_flow import register_user
+from django_did_auth.core.flows.register_flow import register_user
 
 if request.method == "POST":
         form = FormClass(request.POST)
@@ -509,17 +646,6 @@ if request.method == "POST":
 
 ---
 
-## 🧱 Architecture
-
-```
-django_sauth/
-├── core/
-├── security/
-├── flows/
-├── templates/
-```
-
----
 
 ## 🧠 Recommended Additions
 
