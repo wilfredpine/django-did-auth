@@ -23,3 +23,17 @@ def get_config(path: str, default=None):
 
 def get_admin_url():
     return get_config("ADMIN_URL", "admin/").strip("/") + "/"
+
+from importlib import import_module
+
+def get_callable(path):
+    """
+    Import a callable from string path
+    Example: "myproject.errors.custom_403"
+    """
+    try:
+        module_path, func_name = path.rsplit(".", 1)
+        module = import_module(module_path)
+        return getattr(module, func_name)
+    except Exception:
+        return None

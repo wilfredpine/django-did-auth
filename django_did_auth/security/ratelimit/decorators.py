@@ -13,7 +13,9 @@ from django_redis import get_redis_connection
 from django_ratelimit.decorators import ratelimit
 
 from django_did_auth.config.loader import get_config
-from django_did_auth.security.audit.logger import log_ratelimit_bypass, log_redis_down
+from django_did_auth.security.audit.logger import log_ratelimit_bypass, log_redis_down, log_event
+
+from django_did_auth.core.utils.errors import handle_error
 
 logger = logging.getLogger('did_auth.ratelimit')   # Consistent naming
 
@@ -70,11 +72,26 @@ def safe_ratelimit(key='ip', rate=None, **ratelimit_kwargs):
 
             if is_redis_available():
                 # Apply rate limiting only if Redis is up
-                return ratelimit(
+                limited_view = ratelimit(
                     key=key,
                     rate=actual_rate,
+                    block=False,
                     **ratelimit_kwargs
-                )(view)(request, *args, **kwargs)
+                )(view)
+
+                response = limited_view(request, *args, **kwargs)
+
+                # Check if the request was limited and handle it gracefully
+                if getattr(request, "limited", False):
+                    return handle_error(
+                        request,
+                        429,
+                        "Too many attempts. Please try again later."
+                    )
+                    
+                log_event(request, "rate_limit_hit", level="warning")
+
+                return response
 
             # Redis down → bypass + log
             log_ratelimit_bypass(request)

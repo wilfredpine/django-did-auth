@@ -1,6 +1,6 @@
 from django_did_auth.config.loader import get_config, get_admin_url
 from django_did_auth.security.audit.logger import get_client_ip, audit_logger
-from django.shortcuts import render
+from django_did_auth.core.utils.errors import handle_error
 
 class AdminIPWhitelistMiddleware:
     def __init__(self, get_response):
@@ -20,6 +20,6 @@ class AdminIPWhitelistMiddleware:
                         "admin_access_blocked",
                         extra={"ip": client_ip, "path": request.path}
                     )
-                    return render(request, "did_auth/403.html", status=403)
+                    return handle_error(request, 403, "Your are not allowed to access the admin panel.")
         return self.get_response(request)
     

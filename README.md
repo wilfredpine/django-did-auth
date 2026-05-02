@@ -155,6 +155,13 @@ DID_AUTH = {
         "admin": "/dashboard/admin/",
         "user": "/dashboard/",
     },
+    # make sure it matches your models.py roles
+    # ROLE_CHOICES = [
+    #     ('admin', 'Administrator'),
+    #     ('user', 'Regular User'),
+    # ]
+
+    "DENY_BEHAVIOR": "redirect",  # or "forbidden"
 }
 
 # Admin security
@@ -177,6 +184,7 @@ DID_AUTH = {
         "moderator": "/moderator-dashboard/",
         "user": "/dashboard/",
     },
+    "DENY_BEHAVIOR": "redirect",  # or "forbidden"
 
     "EMAIL": {
         "VERIFY_EXPIRY_HOURS": 24,
@@ -554,25 +562,6 @@ Create the following files:
 <p style="color: #666;">This link will expire soon.</p>
 <p>If you didn't request this, please ignore this email.</p>
 ```
-- `templates/did_auth/403.html`
-```html
-<div class="bg-white shadow-lg rounded-2xl p-8 max-w-md text-center">
-    <div class="text-red-500 text-6xl font-bold">403</div>
-    <h1 class="text-2xl font-semibold mt-4 text-gray-800">
-        Access Denied
-    </h1>
-    <p class="text-gray-600 mt-2">
-        You do not have permission to access this resource.
-    </p>
-    <p class="text-sm text-gray-400 mt-3">
-        If you believe this is an error, contact your administrator.
-    </p>
-    <a href="/" 
-       class="inline-block mt-6 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-        Go Home
-    </a>
-</div>
-```
 - `templates/profile/change_password.html`
 ```html
 <form method="post">
@@ -668,6 +657,219 @@ if request.method == "POST":
             user = register_user(request, form)
 ```
 - this will save as `user.is_active = False`
+
+
+## Role-aware Access Control
+
+```python
+from django_did_auth.security.decorators.roles import role_required
+
+@role_required("owner") # Supported: @role_required("admin", "owner")
+def dashboard(request):
+    ...
+```
+If user is:
+- ✅ owner → allow
+- ❌ not owner → redirect or forbidden
+if you have `DID_AUTH["DENY_BEHAVIOR"] = "redirect",` in settings it redirect to their dashboard, if `DID_AUTH["DENY_BEHAVIOR"] = "forbidden",` in setting it show error 403 instead
+
+---
+
+# How to use handler404
+
+## In PROJECT `urls.py`
+```python
+handler404 = "django_did_auth.core.utils.errors.handle_404"
+```
+
+---
+
+# Overried Error Templates
+
+## Template override only
+Create the following templates
+- `Templates/did_auth/errors/401.html`
+
+```html
+<div class="bg-white shadow-lg rounded-2xl p-8 max-w-md text-center">
+    <div class="text-red-500 text-6xl font-bold">401</div>
+    <h1 class="text-2xl font-semibold mt-4 text-gray-800">
+        Authentication Required
+    </h1>
+    <p class="text-gray-600 mt-2">
+       {{ message|default:"You do not have permission." }}
+    </p>
+    <p class="text-sm text-gray-400 mt-3">
+        If you believe this is an error, contact your administrator.
+    </p>
+    <a href="/" 
+       class="inline-block mt-6 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+        Go Home
+    </a>
+</div>
+```
+- `Templates/did_auth/errors/403.html`
+
+```html
+<div class="bg-white shadow-lg rounded-2xl p-8 max-w-md text-center">
+    <div class="text-red-500 text-6xl font-bold">Error 403</div>
+    <h1 class="text-2xl font-semibold mt-4 text-gray-800">
+        Access Denied
+    </h1>
+    <p class="text-gray-600 mt-2">
+       {{ message|default:"You do not have permission." }}
+    </p>
+    <p class="text-sm text-gray-400 mt-3">
+        If you believe this is an error, contact your administrator.
+    </p>
+    <a href="/" 
+       class="inline-block mt-6 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+        Go Home
+    </a>
+</div>
+```
+- `Templates/did_auth/errors/404.html`
+
+```html
+<div class="bg-white shadow-lg rounded-2xl p-8 max-w-md text-center">
+    <div class="text-red-500 text-6xl font-bold">404</div>
+    <h1 class="text-2xl font-semibold mt-4 text-gray-800">
+        Page Not Found
+    </h1>
+    <p class="text-gray-600 mt-2">
+       {{ message|default:"You do not have permission." }}
+    </p>
+    <p class="text-sm text-gray-400 mt-3">
+        If you believe this is an error, contact your administrator.
+    </p>
+    <a href="/" 
+       class="inline-block mt-6 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+        Go Home
+    </a>
+</div>
+```
+- `Templates/did_auth/errors/423.html`
+
+```html
+<div class="bg-white shadow-lg rounded-2xl p-8 max-w-md text-center">
+    <div class="text-red-500 text-6xl font-bold">423</div>
+    <h1 class="text-2xl font-semibold mt-4 text-gray-800">
+        Account Locked
+    </h1>
+    <p class="text-gray-600 mt-2">
+       {{ message|default:"You do not have permission." }}
+    </p>
+    <p class="text-sm text-gray-400 mt-3">
+        If you believe this is an error, contact your administrator.
+    </p>
+    <a href="/" 
+       class="inline-block mt-6 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+        Go Home
+    </a>
+</div>
+```
+- `Templates/did_auth/errors/429.html`
+
+```html
+<div class="bg-white shadow-lg rounded-2xl p-8 max-w-md text-center">
+    <div class="text-red-500 text-6xl font-bold">429</div>
+    <h1 class="text-2xl font-semibold mt-4 text-gray-800">
+        Too Many Requests
+    </h1>
+    <p class="text-gray-600 mt-2">
+       {{ message|default:"You do not have permission." }}
+    </p>
+    <p class="text-sm text-gray-400 mt-3">
+        If you believe this is an error, contact your administrator.
+    </p>
+    <a href="/" 
+       class="inline-block mt-6 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+        Go Home
+    </a>
+</div>
+```
+
+
+## Other overried technuiqes 
+If you don't want to create/overide the html above, in `templates/did_auth/errors/`, then use the approach below:
+
+- Add in `settings.py` (SETTINGS — PLUGGABLE OVERRIDE)
+
+```python
+DID_AUTH["ERROR_HANDLERS"] = {
+        "403": "myproject.errors.custom_403",
+        "404": "myproject.errors.custom_404",
+        "429": "myproject.errors.custom_429",
+    }
+```
+
+- PROJECT OVERRIDE EXAMPLE (`myproject/errors.py`)
+```python
+from django.shortcuts import render
+
+def custom_403(request, message=None):
+    return render(request, "custom/403.html", {"message": message}, status=403)
+```
+
+How it works
+```bash
+role_required()
+    ↓
+handle_403()
+    ↓
+check settings.DID_AUTH["ERROR_HANDLERS"]["403"]
+    ↓
+IF exists → use project function
+ELSE → fallback to framework default
+```
+
+## How to use error handling in project
+- example: `my_project/app_name/views.py`
+```python
+
+from django_did_auth.core.utils.errors import handle_error
+
+return handle_error(request, 403, "You are not allowed to access this page.")
+return handle_error(request, 429, "Too many attempts. Please try again later.")
+return handle_error(request, 401, "Please login first.")
+
+```
+
+- A) Role-based dashboard
+```python
+@login_required
+def staff_dashboard_view(request):
+
+    if request.user.role != "staff":
+        return handle_error(request, 403, "Staff access only.")
+
+    return render(request, "staff/dashboard.html")
+```
+- B) Profile ownership
+```python
+def profile_view(request, user_id):
+
+    if request.user.id != user_id:
+        return handle_error(request, 403, "You cannot view this profile.")
+
+    ...
+```
+- C) API-style auth check
+```python
+def api_view(request):
+
+    if not request.user.is_authenticated:
+        return handle_error(request, 401, "Authentication required.")
+
+    ...
+```
+- Object not found (manual 404)
+```python
+obj = MyModel.objects.filter(id=pk).first()
+
+if not obj:
+    return handle_error(request, 404, "Item not found.")
+```
 
 
 ---

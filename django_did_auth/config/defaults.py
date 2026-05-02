@@ -5,11 +5,13 @@ DID_AUTH = {
     "ADMIN_IP_WHITELIST": ['127.0.0.1', '::1'],  # Localhost by default
 
     "ROLES": {
-        "admin": "/admin-dashboard/",
-        "staff": "/staff-dashboard/",
-        "moderator": "/moderator-dashboard/",
-        "user": "/dashboard/",
+        # "admin": "/admin-dashboard/",
+        # "staff": "/staff-dashboard/",
+        # "moderator": "/moderator-dashboard/",
+        # "user": "/dashboard/",
     },
+    
+    "DENY_BEHAVIOR": "redirect",  # or "forbidden"
 
     "EMAIL": {
         "VERIFY_EXPIRY_HOURS": 24,

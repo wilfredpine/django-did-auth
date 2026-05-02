@@ -1,0 +1,21 @@
+{% extends "did_auth/base.html" %}
+{% block title %}423 - Account Locked{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow-lg rounded-2xl p-8 max-w-md text-center">
+    <div class="text-red-500 text-6xl font-bold">423</div>
+    <h1 class="text-2xl font-semibold mt-4 text-gray-800">
+        Account Locked
+    </h1>
+    <p class="text-gray-600 mt-2">
+       {{ message|default:"You do not have permission." }}
+    </p>
+    <p class="text-sm text-gray-400 mt-3">
+        If you believe this is an error, contact your administrator.
+    </p>
+    <a href="/" 
+       class="inline-block mt-6 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+        Go Home
+    </a>
+</div>
+{% endblock %}
