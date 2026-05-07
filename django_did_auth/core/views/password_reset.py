@@ -7,6 +7,7 @@ from django_did_auth.config.loader import get_config
 
 # Import logging functions
 from django_did_auth.security.audit.logger import (
+    log_event,
     log_password_reset_requested,
     log_password_reset_completed
 )
@@ -41,6 +42,7 @@ def password_reset_request_view(request):
     return render(request, "did_auth/password_reset_request.html", {"form": form})
 
 
+@safe_ratelimit(key='ip', rate="5/m")
 def password_reset_confirm_view(request, uidb64, token):
     FormClass = get_form_class("SetNewPasswordForm")
 
@@ -54,6 +56,7 @@ def password_reset_confirm_view(request, uidb64, token):
                 messages.success(request, "Your password has been reset successfully.")
                 return redirect("did_auth:login")
             else:
+                log_event(request, "password_reset_confirm_failed", extra={"uidb64": uidb64, "token": token})
                 messages.error(request, "Invalid or expired reset link.")
         else:
             messages.error(request, "Please correct the errors below.")

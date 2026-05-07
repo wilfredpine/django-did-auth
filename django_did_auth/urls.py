@@ -35,3 +35,13 @@ urlpatterns = [
          name="password_reset_confirm"),
     
 ]
+
+"""
+Sample change password url for demonstration. You can implement this in your main `urls.py` (see documentation)
+
+from django_did_auth.core.views.password import change_password_view
+
+urlpatterns += [
+    path("profile/change-password/", change_password_view, name="change_password"),
+]
+"""

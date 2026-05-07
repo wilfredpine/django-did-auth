@@ -173,17 +173,18 @@ MIDDLEWARE.insert(0, 'django_did_auth.security.admin.ipwhitelist.AdminIPWhitelis
 
 ```python
 DID_AUTH = {
-    # "LOGIN_REDIRECT": "/dashboard/", # already redirect based on roles below
+    "LOGIN_REDIRECT": "/dashboard/",
     "LOGOUT_REDIRECT": "/login/",
     "ADMIN_URL": "admin/",
     "ADMIN_IP_WHITELIST": ['127.0.0.1', '::1'],  # Localhost by default
 
     "ROLES": {
-        "admin": "/admin-dashboard/",
-        "staff": "/staff-dashboard/",
-        "moderator": "/moderator-dashboard/",
-        "user": "/dashboard/",
+        # "admin": "/admin-dashboard/",
+        # "staff": "/staff-dashboard/",
+        # "moderator": "/moderator-dashboard/",
+        # "user": "/dashboard/",
     },
+    
     "DENY_BEHAVIOR": "redirect",  # or "forbidden"
 
     "EMAIL": {
@@ -257,17 +258,17 @@ REDIS_REQUIRED = os.getenv("REDIS_REQUIRED", "False").lower() == "true"
 REDIS_URL = os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1')
 if REDIS_REQUIRED and not DEBUG:
     if not REDIS_URL:
-        raise ValueError("❌ REDIS_URL required in production")
-CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': REDIS_URL,
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        },
-        'TIMEOUT': 300,
+        raise ValueError(" REDIS_URL required in production")
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': REDIS_URL,
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            },
+            'TIMEOUT': 300,
+        }
     }
-}
 
 # --------------------------------------------------
 # 🔴 Runtime Redis Health Check (IMPORTANT)
@@ -278,7 +279,7 @@ if REDIS_REQUIRED and not DEBUG:
         conn = get_redis_connection("default")
         conn.ping()
     except Exception as e:
-        raise Exception(f"❌ Redis not reachable: {e}")
+        raise Exception(f" Redis not reachable: {e}")
 
 ```
 
@@ -373,6 +374,24 @@ DID_AUTH = {
         "user": "/dashboard/",
     }
 }
+```
+---
+## Using Ratelimiter
+
+```python
+from django_did_auth.security.ratelimit.decorators import safe_ratelimit
+
+@safe_ratelimit(key='ip', rate="10/m")
+@safe_ratelimit(key='post:email', "5/m")
+def myform_view(request):
+    ...
+
+from django.contrib.auth.decorators import login_required
+
+@login_required
+@safe_ratelimit(key="user", rate="5/m", block=True)
+def myform_view(request):
+    ...
 ```
 
 ---
@@ -657,6 +676,7 @@ if request.method == "POST":
             user = register_user(request, form)
 ```
 - this will save as `user.is_active = False`
+- send email for verification
 
 
 ## Role-aware Access Control
@@ -871,7 +891,430 @@ if not obj:
     return handle_error(request, 404, "Item not found.")
 ```
 
+---
 
+# API
+
+## Settings
+```python
+INSTALLED_APPS += [
+    "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
+]
+# Please apply migrations for token_blacklist app to enable token blacklisting functionality
+
+# for development
+    CORS_ALLOW_ALL_ORIGINS = True
+# for production
+    CORS_ALLOWED_ORIGINS = [
+        "http://127.0.0.1:5500/",
+    ]
+
+
+from datetime import timedelta
+from django_project_core_settings.utils.env import get_list_env, get_env
+from django_did_auth.security.ratelimit.decorators import is_redis_available
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend'
+    ],
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "ALGORITHM": "HS256",  # or RS256 (advanced)
+    "SIGNING_KEY": "your-secret-key", # Rotate this key periodically for security
+}
+
+if is_redis_available():
+    REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = [
+        'django_did_auth.security.ratelimit.api_throttles.PublicReadOnlyThrottle',
+        'django_did_auth.security.ratelimit.api_throttles.MethodAwarePublicThrottle',
+        'django_did_auth.security.ratelimit.api_throttles.APIKeyThrottle',
+        'django_did_auth.security.ratelimit.api_throttles.PublicThrottle',
+        'django_did_auth.security.ratelimit.api_throttles.AuthenticatedThrottle',
+    ]
+else:
+    REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
+    SILENCED_SYSTEM_CHECKS = [
+        "django_ratelimit.E003",
+        "django_ratelimit.W001",
+    ]
+    
+REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {
+    "api_public_readonly": "200/min",
+    "public_get": "200/min",
+    "public_post": "50/min",
+    "api_key": "200/min",
+    "api_public": "100/day",
+    "api_authenticated": "1000/day",
+    "login_ip": "10/min",
+    "login_email": "5/min",
+    "register_ip": "5/min",
+    "register_email": "3/min",
+    "password_reset_request": "3/min",
+    "password_reset_confirm": "10/min",
+    "change_password": "5/min",
+}
+REST_FRAMEWORK["EXCEPTION_HANDLER"] = "django_did_auth.api.views.custom_exception_handler"
+```
+
+## Include on your URL (`my_project/urls.py`)
+
+```python
+# Activate API routes
+urlpatterns += [
+    path("api/auth/", include("django_did_auth.api.urls")),
+]
+```
+
+## Inside `django_did_auth.api.urls` (if you want use specific APIs):
+
+```python
+from django.urls import path
+from .views import (
+    ChangePasswordAPIView,
+    APILoginView, 
+    LogoutAPIView,
+    PasswordResetConfirmAPIView,
+    PasswordResetRequestAPIView, 
+    RegisterAPIView,
+    ProfileAPIView, 
+    TokenRefreshAPIView,
+)
+
+urlpatterns = [
+    # JWT Token Refresh Endpoint
+    path("refresh/", TokenRefreshAPIView.as_view(), name="api-refresh"),
+    
+    # Authentication Endpoints
+    path("register/", RegisterAPIView.as_view(), name="api-register"),
+    path("login/", APILoginView.as_view(), name="api-login"),
+    path("logout/", LogoutAPIView.as_view(), name="api-logout"),
+    
+    # Password Reset Endpoints
+    path("password-reset/", PasswordResetRequestAPIView.as_view(), name="api-password-reset-request"),
+    path("password-reset-confirm/<uidb64>/<token>/", PasswordResetConfirmAPIView.as_view(), name="api-password-reset-confirm"),
+    
+    # User Profile & Password Change (Authenticated Endpoints)
+    path("profile/", ProfileAPIView.as_view(), name="api-profile"),
+    path("password-change/", ChangePasswordAPIView.as_view(), name="api-password-change"), 
+    
+]
+
+ # Role-Based Access Control Endpoints Examples
+ # from .views import HealthCheckAPIView, AdminOnlyAPIView, UserOnlyAPIView
+"""
+path("health/", HealthCheckAPIView.as_view(), name="api-health"),
+path("admin-only/", AdminOnlyAPIView.as_view(), name="api-admin-only"),
+path("user-only/", UserOnlyAPIView.as_view(), name="api-user-only"),
+"""
+```
+
+## API security for your own API Views:
+
+- is authenticated:
+
+```python
+class ProfileAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response({
+            ...
+
+```
+UI sample:
+```html
+<pre id="output"></pre>
+<button id="getProfileBtn" type="button">Get Profile</button>
+```
+```javascript
+
+    async function refreshToken() {
+        const refresh = localStorage.getItem("refresh_token");
+
+        const res = await fetch("http://127.0.0.1:8000/api/auth/refresh/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refresh })
+        });
+
+        const data = await res.json();
+
+        if (data.access) {
+            localStorage.setItem("access_token", data.access);
+            localStorage.setItem("refresh_token", data.refresh);
+            return true;
+        }
+        return false;
+    }
+
+    document.getElementById("getProfileBtn").addEventListener("click", async function() {
+        let access = localStorage.getItem("access_token");
+
+        let res = await fetch("http://127.0.0.1:8000/api/auth/profile/", {
+            headers: { "Authorization": `Bearer ${access}` }
+        });
+
+        if (res.status === 401) {
+            const ok = await refreshToken();
+            if (!ok) {
+                document.getElementById("output").textContent = "Session expired";
+                return;
+            }
+
+            access = localStorage.getItem("access_token");
+
+            res = await fetch("http://127.0.0.1:8000/api/auth/profile/", {
+                headers: { "Authorization": `Bearer ${access}` }
+            });
+        }
+
+        const data = await res.json();
+        document.getElementById("output").textContent = JSON.stringify(data, null, 2);
+    });
+```
+
+- admin access only:
+
+```python
+class AdminOnlyAPIView(APIView):
+    permission_classes = [IsAuthenticated, role_access('admin')]
+
+    def get(self, request):
+        return Response({"message": "Admin access granted"})
+
+# path("api/auth/admin-only/", AdminOnlyAPIView.as_view(), name="api-admin-only"),
+```
+
+```javascript
+    document.getElementById("adminOnlyBtn").addEventListener("click", async function() {
+        let access = localStorage.getItem("access_token");
+
+        let res = await fetch("http://127.0.0.1:8000/api/auth/admin-only/", {
+            headers: { "Authorization": `Bearer ${access}` }
+        });
+
+        if (res.status === 401) {
+            const ok = await refreshToken();
+            if (!ok) {
+                document.getElementById("output").textContent = "Session expired";
+                return;
+            }
+
+            access = localStorage.getItem("access_token");
+
+            res = await fetch("http://127.0.0.1:8000/api/auth/admin-only/", {
+                headers: { "Authorization": `Bearer ${access}` }
+            });
+        }
+
+        const data = await res.json();
+        document.getElementById("output").textContent = JSON.stringify(data, null, 2);
+    });
+
+```
+
+- multiple role access:
+
+```python
+class UserOnlyAPIView(APIView):
+    permission_classes = [IsAuthenticated, role_access('user')]
+
+    def get(self, request):
+        return Response({"message": "User access granted"})
+
+
+# path("api/auth/user-only/", UserOnlyAPIView.as_view(), name="api-user-only"),
+```
+```javascript
+    document.getElementById("userOnlyBtn").addEventListener("click", async function() {
+        let access = localStorage.getItem("access_token");
+
+        let res = await fetch("http://127.0.0.1:8000/api/auth/user-only/", {
+            headers: { "Authorization": `Bearer ${access}` }
+        });
+
+        if (res.status === 401) {
+            const ok = await refreshToken();
+            if (!ok) {
+                document.getElementById("output").textContent = "Session expired";
+                return;
+            }
+
+            access = localStorage.getItem("access_token");
+
+            res = await fetch("http://127.0.0.1:8000/api/auth/user-only/", {
+                headers: { "Authorization": `Bearer ${access}` }
+            });
+        }
+
+        const data = await res.json();
+        document.getElementById("output").textContent = JSON.stringify(data, null, 2);
+    });
+```
+
+- Sample Login / Logout:
+```javascript
+    document.getElementById("loginForm").addEventListener("submit", async function(e) {
+        e.preventDefault();
+
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
+
+        try {
+            const response = await fetch("http://127.0.0.1:8000/api/auth/login/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    email: email,
+                    password: password
+                })
+            });
+
+            const data = await response.json();
+
+            console.log(data);
+
+            // Display response
+            document.getElementById("output").textContent = JSON.stringify(data, null, 2);
+
+            // Save token if success
+            if (data.access) {
+                localStorage.setItem("access_token", data.access);
+                localStorage.setItem("refresh_token", data.refresh);
+            }
+
+        } catch (error) {
+            document.getElementById("output").textContent = error;
+        }
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", async function() {
+        const accessToken = localStorage.getItem("access_token");
+        const refreshToken = localStorage.getItem("refresh_token");
+
+        if (!accessToken && !refreshToken) {
+            document.getElementById("output").textContent = "No token found. Please login first.";
+            return;
+        }
+
+        try {
+            const response = await fetch("http://127.0.0.1:8000/api/auth/logout/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${accessToken}`
+                },
+                body: JSON.stringify({
+                    refresh: refreshToken
+                })
+            });
+
+            const data = await response.json();
+            document.getElementById("output").textContent = JSON.stringify(data, null, 2);
+
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("refresh_token");
+        } catch (error) {
+            document.getElementById("output").textContent = error;
+        }
+    });
+```
+
+- Other existing URLs can be used:
+
+```python
+# Authentication Endpoints
+http://127.0.0.1:8000/api/auth/register/
+http://127.0.0.1:8000/api/auth/login/
+http://127.0.0.1:8000/api/auth/logout/
+
+# Password Reset Endpoints
+http://127.0.0.1:8000/api/auth/password-reset/
+http://127.0.0.1:8000/api/auth/password-reset-confirm/<uidb64>/<token>/
+
+# User Profile & Password Change (Authenticated Endpoints)
+http://127.0.0.1:8000/api/auth/profile/
+http://127.0.0.1:8000/api/auth/password-change/
+```
+
+
+### Using throttle (ratelimiter for APIs):
+
+- Public
+
+```python
+class PublicContentAPIView(APIView):
+    throttle_classes = [
+        PublicThrottle,
+    ]
+
+    def get(self, request):
+        ...
+```
+
+- Public Readonly
+
+```python
+class PublicReadOnlyContentAPIView(APIView):
+    throttle_classes = [
+        PublicReadOnlyThrottle,
+    ]
+
+    def get(self, request):
+        ...
+```
+
+- Authenticated
+
+```python
+class AuthenticatedAllRolesAPIView(APIView):
+    throttle_classes = [
+        AuthenticatedThrottle,
+    ]
+
+    def get(self, request):
+        ...
+```
+
+- Post or Get Method aware
+
+```python
+class MethodAwarePublicContentAPIView(APIView):
+    throttle_classes = [
+        MethodAwarePublicThrottle,
+    ]
+
+    def get(self, request):
+```
+
+- APIKeyThrottle
+
+```python
+class RequiredAPIKeyContentView(APIView):
+    throttle_classes = [
+        APIKeyThrottle,
+    ]
+
+    def get(self, request):
+```
+
+      
 ---
 
 ## 🚨 Production Checklist

@@ -5,10 +5,11 @@ from django.contrib import messages
 from django_did_auth.ui.adapters.form_adapter import get_form_class
 from django_did_auth.core.flows.password_flow import change_password_flow
 from django_did_auth.security.audit.logger import log_password_change, log_event
-
+from django_did_auth.security.ratelimit.decorators import safe_ratelimit
 from django.contrib.auth import update_session_auth_hash
 
 @login_required
+@safe_ratelimit(key="user", rate="5/m", block=True)
 def change_password_view(request):
     
     FormClass = get_form_class("ChangePasswordForm")

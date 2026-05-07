@@ -14,7 +14,7 @@ from django_did_auth.security.audit.logger import (
 )
 from django.contrib.auth import login
 
-def login_user(request, email, password):
+def login_user(request, email, password, use_session=True):
     """
     Authenticate user and handle inactive accounts by resending verification email.
     Returns (user, status) tuple.
@@ -35,5 +35,8 @@ def login_user(request, email, password):
 
     # Successful login
     log_login_success(request, user)
-    login(request, user)
+    
+    if use_session:
+        login(request, user)
+
     return user, "success"

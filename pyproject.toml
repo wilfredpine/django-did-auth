@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "django-did-auth"
-version = "0.1.4"
+version = "0.1.5"
 description = "Secure, pluggable authentication framework for Django"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -35,6 +35,9 @@ dependencies = [
     "Pillow>=10.0.0",           
     "django-axes>=8.0",         
     "argon2-cffi>=21.3.0",
+    "djangorestframework>=3.15.0",
+    "djangorestframework-simplejwt>=5.3.0",
+    "django-cors-headers>=4.9.0",
 ]
 
 [project.urls]
